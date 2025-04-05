@@ -96,9 +96,12 @@ func drawLine(img *image.RGBA, x1, y1, x2, y2 int, color color.RGBA) {
 // filled in circle at (x, y) with radius r
 func drawCircle(img *image.RGBA, x, y, r int, color color.RGBA) {
 	// not quite Bresenham quality
-	for i := -r; i <= r; i++ {
-		for j := -r; j <= r; j++ {
+	for i := 0; i <= r; i++ {
+		for j := 0; j <= r; j++ {
 			if i*i+j*j <= r*r + 1 {
+				img.Set(x-i, y-j, color)
+				img.Set(x-i, y+j, color)
+				img.Set(x+i, y-j, color)
 				img.Set(x+i, y+j, color)
 			}
 		}
