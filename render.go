@@ -106,7 +106,6 @@ func drawCircle(img *image.RGBA, x, y, r int, color color.RGBA) {
 			}
 		}
 	}
-	// draw.Draw(img, img.Bounds(), &image.Uniform{edgeColor}, image.Point{}, draw.Over)
 }
 
 /***********/
@@ -162,20 +161,11 @@ func drawNodes(img *image.RGBA, graph []Node, boundary Boundary) {
 	}
 }
 
-/*
-Todo: Rendering the graph can actually be done in parallel because we don't mind
-
-	drawing things on top of each other as long as the edge phase and the node phase are
-	separate.
-*/
+/* Todo: Rendering the graph can actually be done in parallel because we don't mind
+   drawing things on top of each other as long as the edge phase and the node phase are
+   separate. */
 func drawGraph(img *image.RGBA, graph []Node) {
 	boundary := getBoundary(graph)
-	/*
-	boundary.Left -= float32(nodeRadius)
-	boundary.Right += float32(nodeRadius)
-	boundary.Bottom -= float32(nodeRadius)
-	boundary.Top += float32(nodeRadius)
-	*/
 	drawEdges(img, graph, boundary)
 	drawNodes(img, graph, boundary)
 }
