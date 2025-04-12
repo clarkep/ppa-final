@@ -185,29 +185,3 @@ func (g *Graph) Print() {
         fmt.Printf("%d -> %v\n", node, g.adjList[node])
     }
 }
-
-func main() {
-    if len(os.Args) < 2 {
-        fmt.Println("Usage: go run graph.go <input-file>")
-        return
-    }
-
-    filename := os.Args[1]
-    graph, err := buildGraphFromFile(filename)
-    if err != nil {
-        fmt.Printf("Error building graph: %v\n", err)
-        return
-    }
-
-    fmt.Println("Graph adjacency list:")
-    graph.Print()
-
-    // After building graph
-    layout := ComputeForceDirectedLayout(graph, 100, 800.0, 600.0)
-    
-    // Print final positions
-    fmt.Println("\nFinal node positions:")
-    for node, pos := range layout {
-        fmt.Printf("Node %d: (%.2f, %.2f)\n", node, pos.X, pos.Y)
-    }
-}

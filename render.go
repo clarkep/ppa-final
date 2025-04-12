@@ -19,12 +19,14 @@ type Boundary struct {
 	Left, Right, Bottom, Top float32
 }
 
-type Node struct {
+type PosNode struct {
 	X, Y  float32
 	Edges []int
 }
 
-var testgraph = []Node{
+type PosGraph []PosNode;
+
+var testgraph = PosGraph {
 	{X: 0, Y: 0, Edges: []int{1, 2, 3}},
 	{X: 1, Y: 0, Edges: []int{0, 3}},
 	{X: 0, Y: 1, Edges: []int{0, 3}},
@@ -118,7 +120,7 @@ func drawCircle(img *image.RGBA, x, y, r int, color color.RGBA) {
 
 /***********/
 
-func getBoundary(graph []Node) Boundary {
+func getBoundary(graph []PosNode) Boundary {
 	boundary := Boundary{}
 	for _, node := range graph {
 		if node.X < boundary.Left {
@@ -149,7 +151,7 @@ func translateCoords(x, y float32, boundary Boundary, imgW, imgH int) (int, int)
 	return xOffset, yOffset
 }
 
-func drawEdges(img *image.RGBA, graph []Node, boundary Boundary) {
+func drawEdges(img *image.RGBA, graph []PosNode, boundary Boundary) {
 	imgW, imgH := img.Bounds().Max.X, img.Bounds().Max.Y
 	for _, node := range graph {
 		for _, edge := range node.Edges {
@@ -160,7 +162,7 @@ func drawEdges(img *image.RGBA, graph []Node, boundary Boundary) {
 	}
 }
 
-func drawNodes(img *image.RGBA, graph []Node, boundary Boundary) {
+func drawNodes(img *image.RGBA, graph PosGraph, boundary Boundary) {
 	imgW, imgH := img.Bounds().Max.X, img.Bounds().Max.Y
 	for _, node := range graph {
 		xp, yp := translateCoords(node.X, node.Y, boundary, imgW, imgH)
@@ -171,13 +173,13 @@ func drawNodes(img *image.RGBA, graph []Node, boundary Boundary) {
 /* Todo: Rendering the graph can actually be done in parallel because we don't mind
    drawing things on top of each other as long as the edge phase and the node phase are
    separate. */
-func drawGraph(img *image.RGBA, graph []Node) {
+func drawGraph(img *image.RGBA, graph PosGraph) {
 	boundary := getBoundary(graph)
 	drawEdges(img, graph, boundary)
 	drawNodes(img, graph, boundary)
 }
 
-func run(window *app.Window) error {
+func run(window *app.Window, graph PosGraph) error {
 	var ops op.Ops
 	for {
 		switch e := window.Event().(type) {
@@ -186,7 +188,7 @@ func run(window *app.Window) error {
 		case app.FrameEvent:
 			img := image.NewRGBA(image.Rect(0, 0, e.Size.X, e.Size.Y))
 			draw.Draw(img, img.Bounds(), &image.Uniform{color.White}, image.Point{}, draw.Src)
-			drawGraph(img, testgraph)
+			drawGraph(img, graph)
 
 			// see https://gioui.org/doc/architecture/drawing
 			paint.NewImageOp(img).Add(&ops)
@@ -196,27 +198,26 @@ func run(window *app.Window) error {
 	}
 }
 
-func main() {
-	if len(os.Args) > 1 && os.Args[1] == "png" {
-		// Create a new image
-		img := image.NewRGBA(image.Rect(0, 0, 800, 800))
-		draw.Draw(img, img.Bounds(), &image.Uniform{color.White}, image.Point{}, draw.Src)
-		drawGraph(img, testgraph)
-		out, _ := os.Create("output.png")
-		png.Encode(out, img)
-		out.Close()
-	} else {
+func RenderGUI (graph PosGraph) {
 		fmt.Println("Starting ui...")
 		go func() {
 			window := new(app.Window)
-			err := run(window)
+			err := run(window, graph)
 			if err != nil {
 				log.Fatal(err)
 			}
 			os.Exit(0)
 		}()
 		app.Main()
-	}
+}
+
+func RenderPNG (graph PosGraph) {
+	img := image.NewRGBA(image.Rect(0, 0, 800, 800))
+	draw.Draw(img, img.Bounds(), &image.Uniform{color.White}, image.Point{}, draw.Src)
+	drawGraph(img, graph)
+	out, _ := os.Create("output.png")
+	png.Encode(out, img)
+	out.Close()
 }
 
 /* Refs:
