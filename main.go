@@ -56,7 +56,7 @@ func main() {
         errexit(fmt.Sprintf("Error building graph: %v\n", err))
     }
 
-	positions := ComputeForceDirectedLayout(graph, 100, 800., 600.)
+	positions := ForceDirectedLayout(graph, 100, 800., 600.)
     for node, pos := range positions {
         fmt.Printf("Node %d: (%.2f, %.2f)\n", node, pos.X, pos.Y)
     }
@@ -65,7 +65,6 @@ func main() {
 	if drawGui {
 		RenderGUI(outGraph)
 	} else {
-		// Create a new image
 		RenderPNG(outGraph)
 	}
 }
