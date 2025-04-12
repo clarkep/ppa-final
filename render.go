@@ -199,16 +199,16 @@ func run(window *app.Window, graph PosGraph) error {
 }
 
 func RenderGUI (graph PosGraph) {
-		fmt.Println("Starting ui...")
-		go func() {
-			window := new(app.Window)
-			err := run(window, graph)
-			if err != nil {
-				log.Fatal(err)
-			}
-			os.Exit(0)
-		}()
-		app.Main()
+	fmt.Println("Starting ui...")
+	go func() {
+		window := new(app.Window)
+		err := run(window, graph)
+		if err != nil {
+			log.Fatal(err)
+		}
+		os.Exit(0)
+	}()
+	app.Main()
 }
 
 func RenderPNG (graph PosGraph) {

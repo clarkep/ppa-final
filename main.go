@@ -5,11 +5,11 @@ import (
 	"os"
 )
 
-func convertGraph (graph *Graph, positions map[int]Point) PosGraph { 
+func convertGraph(graph *Graph, positions map[int]Point) PosGraph {
 	keysToIndices := make(map[int]int, len(graph.adjList))
 	i := 0
 	for k, _ := range graph.adjList {
-		keysToIndices[k] = i;
+		keysToIndices[k] = i
 		i += 1
 	}
 	nodes := make([]PosNode, len(graph.adjList))
@@ -24,7 +24,7 @@ func convertGraph (graph *Graph, positions map[int]Point) PosGraph {
 	return nodes
 }
 
-func errexit (message string) {
+func errexit(message string) {
 	fmt.Println(message)
 	os.Exit(1)
 }
@@ -36,30 +36,30 @@ func main() {
 	for i := 1; i < len(os.Args); i++ {
 		if os.Args[i][0] == '-' {
 			if os.Args[i][1:] == "png" {
-				drawGui = false;
+				drawGui = false
 			}
 		} else {
 			if filenameSet {
 				errexit("Only one filename argument allowed.")
 			} else {
 				filename = os.Args[i]
-				filenameSet = true;
+				filenameSet = true
 			}
 		}
 	}
 	if !filenameSet {
-        errexit("Usage: go run graph.go <input-file>")
-    }
+		errexit("Usage: ppa-final [-png] <input-file>")
+	}
 
-    graph, err := buildGraphFromFile(filename)
-    if err != nil {
-        errexit(fmt.Sprintf("Error building graph: %v\n", err))
-    }
+	graph, err := buildGraphFromFile(filename)
+	if err != nil {
+		errexit(fmt.Sprintf("Error building graph: %v\n", err))
+	}
 
 	positions := ForceDirectedLayout(graph, 100, 800., 600.)
-    for node, pos := range positions {
-        fmt.Printf("Node %d: (%.2f, %.2f)\n", node, pos.X, pos.Y)
-    }
+	for node, pos := range positions {
+		fmt.Printf("Node %d: (%.2f, %.2f)\n", node, pos.X, pos.Y)
+	}
 	outGraph := convertGraph(graph, positions)
 
 	if drawGui {
