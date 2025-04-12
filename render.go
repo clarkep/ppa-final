@@ -7,6 +7,12 @@ import (
 	"image/draw"
 	"image/png"
 	"os"
+
+	"log"
+
+	"gioui.org/app"
+	"gioui.org/op"
+	"gioui.org/op/paint"
 )
 
 type Boundary struct {
@@ -95,14 +101,16 @@ func drawLine(img *image.RGBA, x1, y1, x2, y2 int, color color.RGBA) {
 
 // filled in circle at (x, y) with radius r
 func drawCircle(img *image.RGBA, x, y, r int, color color.RGBA) {
-	// not quite Bresenham quality
+	// not quite Bresenham quality, Todo: improve or antialias
 	for i := 0; i <= r; i++ {
 		for j := 0; j <= r; j++ {
-			if i*i+j*j <= r*r + 1 {
+			if i*i+j*j <= r*r+1 {
 				img.Set(x-i, y-j, color)
 				img.Set(x-i, y+j, color)
 				img.Set(x+i, y-j, color)
 				img.Set(x+i, y+j, color)
+			} else {
+				break;
 			}
 		}
 	}
@@ -130,11 +138,11 @@ func getBoundary(graph []Node) Boundary {
 }
 
 func translateCoords(x, y float32, boundary Boundary, imgW, imgH int) (int, int) {
-	xScale := float32(imgW - 2*nodeRadius) / (boundary.Right - boundary.Left)
-	yScale := float32(imgH - 2*nodeRadius) / (boundary.Top - boundary.Bottom)
+	xScale := float32(imgW-2*nodeRadius) / (boundary.Right - boundary.Left)
+	yScale := float32(imgH-2*nodeRadius) / (boundary.Top - boundary.Bottom)
 
-	xOffset := nodeRadius + int(xScale * (x - boundary.Left))
-	yOffset := nodeRadius + int(yScale * (boundary.Top - y))
+	xOffset := nodeRadius + int(xScale*(x-boundary.Left))
+	yOffset := nodeRadius + int(yScale*(boundary.Top-y))
 
 	// xx remove
 	// assert(xOffset >= 0 && xOffset < imgW && yOffset >= 0 && yOffset < imgH, "out of bounds")
@@ -145,7 +153,6 @@ func drawEdges(img *image.RGBA, graph []Node, boundary Boundary) {
 	imgW, imgH := img.Bounds().Max.X, img.Bounds().Max.Y
 	for _, node := range graph {
 		for _, edge := range node.Edges {
-			fmt.Println(node.X, node.Y, graph[edge].X, graph[edge].Y)
 			x1p, y1p := translateCoords(node.X, node.Y, boundary, imgW, imgH)
 			x2p, y2p := translateCoords(graph[edge].X, graph[edge].Y, boundary, imgW, imgH)
 			drawLine(img, x1p, y1p, x2p, y2p, edgeColor)
@@ -170,14 +177,46 @@ func drawGraph(img *image.RGBA, graph []Node) {
 	drawNodes(img, graph, boundary)
 }
 
+func run(window *app.Window) error {
+	var ops op.Ops
+	for {
+		switch e := window.Event().(type) {
+		case app.DestroyEvent:
+			return e.Err
+		case app.FrameEvent:
+			img := image.NewRGBA(image.Rect(0, 0, e.Size.X, e.Size.Y))
+			draw.Draw(img, img.Bounds(), &image.Uniform{color.White}, image.Point{}, draw.Src)
+			drawGraph(img, testgraph)
+
+			// see https://gioui.org/doc/architecture/drawing
+			paint.NewImageOp(img).Add(&ops)
+			paint.PaintOp{}.Add(&ops)
+			e.Frame(&ops)
+		}
+	}
+}
+
 func main() {
-	// Create a new image
-	img := image.NewRGBA(image.Rect(0, 0, 800, 800))
-	draw.Draw(img, img.Bounds(), &image.Uniform{color.White}, image.Point{}, draw.Src)
-	drawGraph(img, testgraph)
-	out, _ := os.Create("output.png")
-	png.Encode(out, img)
-	out.Close()
+	if len(os.Args) > 1 && os.Args[1] == "png" {
+		// Create a new image
+		img := image.NewRGBA(image.Rect(0, 0, 800, 800))
+		draw.Draw(img, img.Bounds(), &image.Uniform{color.White}, image.Point{}, draw.Src)
+		drawGraph(img, testgraph)
+		out, _ := os.Create("output.png")
+		png.Encode(out, img)
+		out.Close()
+	} else {
+		fmt.Println("Starting ui...")
+		go func() {
+			window := new(app.Window)
+			err := run(window)
+			if err != nil {
+				log.Fatal(err)
+			}
+			os.Exit(0)
+		}()
+		app.Main()
+	}
 }
 
 /* Refs:
