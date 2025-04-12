@@ -4,27 +4,40 @@ import (
     "bufio"
     "fmt"
     "os"
-    "sort"
     "strconv"
     "strings"
 )
 
-// Constructor for new graph
-func NewGraph() *Graph {
-    return &Graph{
-        adjList: make(map[int][]int),
-    }
+// Graph type using adjacency list
+type Graph [][]int
+
+// Converts graph from map to slice
+func convertGraph(graph map[int][]int) Graph {
+	keysToIndices := make(map[int]int, len(graph))
+	i := 0
+	for k, _ := range graph {
+		keysToIndices[k] = i
+		i += 1
+	}
+	out := make([][]int, len(graph))
+	for k, v := range graph {
+		ki := keysToIndices[k]
+		for _, neighbor_key := range v {
+			out[ki] = append(out[ki], keysToIndices[neighbor_key])
+		}
+	}
+	return out
 }
 
 // Builds graph from file input
-func buildGraphFromFile(filename string) (*Graph, error) {
+func buildGraphFromFile(filename string) (Graph, error) {
     file, err := os.Open(filename)
     if err != nil {
         return nil, err
     }
     defer file.Close()
 
-    graph := NewGraph()
+    graph := make(map[int][]int)
 
     scanner := bufio.NewScanner(file)
     for scanner.Scan() {
@@ -45,26 +58,22 @@ func buildGraphFromFile(filename string) (*Graph, error) {
         }
 
         // Add edges both ways for undirected graph
-        graph.adjList[u] = append(graph.adjList[u], v)
-        graph.adjList[v] = append(graph.adjList[v], u)
+        graph[u] = append(graph[u], v)
+        graph[v] = append(graph[v], u)
     }
 
     if err := scanner.Err(); err != nil {
         return nil, err
     }
 
-    return graph, nil
+    return convertGraph(graph), nil
 }
 
-// Prints adjacency list with sorted nodes
-func (g *Graph) Print() {
-    nodes := make([]int, 0, len(g.adjList))
-    for node := range g.adjList {
-        nodes = append(nodes, node)
-    }
-    sort.Ints(nodes)
-
-    for _, node := range nodes {
-        fmt.Printf("%d -> %v\n", node, g.adjList[node])
+// Prints adjacency list
+func (g Graph) Print() {
+    for i, u := range g {
+        for j, _ := range u {
+            fmt.Printf("%d -> %d\n", i, j)
+        }
     }
 }

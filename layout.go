@@ -35,27 +35,17 @@ func clamp(val, min, max float64) float64 {
     return val
 }
 
-// Graph structure using adjacency list
-type Graph struct {
-    adjList map[int][]int
-}
-
-func ForceDirectedLayout(g *Graph, iterations int, width, height float64) map[int]Point {
+func ForceDirectedLayout(nodes Graph, iterations int, width, height float64) []Point {
     // rand.Seed(time.Now().UnixNano())
-    nodes := make([]int, 0, len(g.adjList))
-    for node := range g.adjList {
-        nodes = append(nodes, node)
-    }
-    
     n := len(nodes)
     if n == 0 {
-        return make(map[int]Point)
+        return make([]Point, 0)
     }
     
     // Initialize positions randomly
-    positions := make(map[int]Point)
-    for _, node := range nodes {
-        positions[node] = Point{
+    positions := make([]Point, n)
+    for i,_ := range nodes {
+        positions[i] = Point{
             X: rand.Float64() * width,
             Y: rand.Float64() * height,
         }
@@ -67,50 +57,48 @@ func ForceDirectedLayout(g *Graph, iterations int, width, height float64) map[in
     epsilon := 1e-6
 
     for iter := 0; iter < iterations; iter++ {
-        displacements := make(map[int]Point)
+        displacements := make([]Point, n)
         
         // Calculate repulsive forces
         for i := 0; i < len(nodes); i++ {
-            u := nodes[i]
             for j := i + 1; j < len(nodes); j++ {
-                v := nodes[j]
-                delta := positions[u].Sub(positions[v])
+                delta := positions[i].Sub(positions[j])
                 distance := delta.Norm()
                 if distance < epsilon {
                     distance = epsilon
                 }
                 force := delta.Scale((k * k) / (distance * distance))
-                displacements[u] = displacements[u].Add(force)
-                displacements[v] = displacements[v].Sub(force)
+                displacements[i] = displacements[i].Add(force)
+                displacements[j] = displacements[j].Sub(force)
             }
         }
         
         // Calculate attractive forces using adjacency list
-        for _, u := range nodes {
-            for _, v := range g.adjList[u] {
-                if u < v { // Process each edge once
-                    delta := positions[v].Sub(positions[u])
+        for i, u := range nodes {
+            for j, _ := range u {
+                if i < j { // Process each edge once
+                    delta := positions[j].Sub(positions[i])
                     distance := delta.Norm()
                     if distance < epsilon {
                         distance = epsilon
                     }
                     force := delta.Scale(distance / k)
-                    displacements[u] = displacements[u].Add(force)
-                    displacements[v] = displacements[v].Sub(force)
+                    displacements[i] = displacements[i].Add(force)
+                    displacements[j] = displacements[j].Sub(force)
                 }
             }
         }
         
         // Update positions with temperature cooling
-        for _, node := range nodes {
-            disp := displacements[node]
+        for i, _ := range nodes {
+            disp := displacements[i]
             dispNorm := disp.Norm()
             if dispNorm > 0 {
                 disp = disp.Scale(math.Min(dispNorm, t) / dispNorm)
-                newPos := positions[node].Add(disp)
+                newPos := positions[i].Add(disp)
                 newPos.X = clamp(newPos.X, 0, width)
                 newPos.Y = clamp(newPos.Y, 0, height)
-                positions[node] = newPos
+                positions[i] = newPos
             }
         }
         
