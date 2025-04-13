@@ -5,23 +5,14 @@ import (
 	"os"
 )
 
-func convertGraph(graph *Graph, positions map[int]Point) PosGraph {
-	keysToIndices := make(map[int]int, len(graph.adjList))
-	i := 0
-	for k, _ := range graph.adjList {
-		keysToIndices[k] = i
-		i += 1
+func augmentGraph(graph Graph, positions []Point) PosGraph {
+	out := make([]PosNode, len(graph))
+	for i, u := range graph {
+		out[i].X = float32(positions[i].X)
+		out[i].Y = float32(positions[i].Y)
+		out[i].Edges = u
 	}
-	nodes := make([]PosNode, len(graph.adjList))
-	for k, v := range graph.adjList {
-		ki := keysToIndices[k]
-		nodes[ki].X = float32(positions[k].X)
-		nodes[ki].Y = float32(positions[k].Y)
-		for _, neighbor_key := range v {
-			nodes[ki].Edges = append(nodes[ki].Edges, keysToIndices[neighbor_key])
-		}
-	}
-	return nodes
+	return out
 }
 
 func errexit(message string) {
@@ -60,7 +51,7 @@ func main() {
 	for node, pos := range positions {
 		fmt.Printf("Node %d: (%.2f, %.2f)\n", node, pos.X, pos.Y)
 	}
-	outGraph := convertGraph(graph, positions)
+	outGraph := augmentGraph(graph, positions)
 
 	if drawGui {
 		RenderGUI(outGraph)
