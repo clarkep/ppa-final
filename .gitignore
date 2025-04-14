@@ -29,3 +29,8 @@ go.work
 # OS generated files
 .DS_Store
 Thumbs.db
+
+# Project files
+input.txt
+go.sum
+ppa-final
