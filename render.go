@@ -202,6 +202,7 @@ func RenderGUI (graph PosGraph) {
 	fmt.Println("Starting ui...")
 	go func() {
 		window := new(app.Window)
+		window.Option(app.Title("Graphs"))
 		err := run(window, graph)
 		if err != nil {
 			log.Fatal(err)
