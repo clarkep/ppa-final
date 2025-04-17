@@ -57,7 +57,8 @@ func main() {
 	}
 	endPhase("Build graph", &phaseStart)
 
-	positions := ForceDirectedLayout(graph, 10000, 800., 600.)
+	// positions := ForceDirectedLayout(graph, 10000, 800., 600.)
+	positions := ForceDirectedLayoutParallel(graph, 10000, 800., 600., 1000)
 	/*
 	for node, pos := range positions {
 		fmt.Printf("Node %d: (%.2f, %.2f)\n", node, pos.X, pos.Y)
