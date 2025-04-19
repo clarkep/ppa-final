@@ -81,16 +81,16 @@ func ForceDirectedLayout(nodes Graph, iterations int, width, height float64) []P
 
 		// Calculate attractive forces using adjacency list
 		for i, u := range nodes {
-			for j, _ := range u {
-				if i < j { // Process each edge once
-					delta := positions[j].Sub(positions[i])
+			for _, v := range u {
+				if i < v { // Process each edge once
+					delta := positions[v].Sub(positions[i])
 					distance := delta.Norm()
 					if distance < epsilon {
 						distance = epsilon
 					}
 					force := delta.Scale(distance / k)
 					displacements[i] = displacements[i].Add(force)
-					displacements[j] = displacements[j].Sub(force)
+					displacements[v] = displacements[v].Sub(force)
 				}
 			}
 		}
