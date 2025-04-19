@@ -30,7 +30,7 @@ func convertGraph(graph map[int][]int) Graph {
 }
 
 // Builds graph from file input
-func buildGraphFromFile(filename string) (Graph, error) {
+func buildGraphFromFile(filename string, directed) (Graph, error) {
     file, err := os.Open(filename)
     if err != nil {
         return nil, err
@@ -59,7 +59,9 @@ func buildGraphFromFile(filename string) (Graph, error) {
 
         // Add edges both ways for undirected graph
         graph[u] = append(graph[u], v)
-        graph[v] = append(graph[v], u)
+        if (!directed) {
+            graph[v] = append(graph[v], u)
+        }
     }
 
     if err := scanner.Err(); err != nil {

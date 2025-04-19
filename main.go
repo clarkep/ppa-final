@@ -27,16 +27,37 @@ func endPhase(phaseName string, phaseStart *time.Time) {
 	*phaseStart = phaseEnd
 }
 
+func forceDirectedStd (graph Graph) {
+	return ForceDirectedLayout(graph, 10000, 800., 600.)
+}
+
+func forceDirectedParallelStd (graph Graph) {
+	return ForceDirectedLayoutParallel(graph, 10000, 800., 600., 1000)
+}
+
+func SugiyamaMain () {
+	fmt.Printf("Not implemented yet.\n")
+}
+
 func main() {
 	phaseStart := time.Now()
 	drawGui := true
 	var filename string
 	filenameSet := false
+	layoutFunc := forceDirectedStd
+	directed := false
 	for i := 1; i < len(os.Args); i++ {
 		if os.Args[i][0] == '-' {
-			if os.Args[i][1:] == "png" {
+			flag = os.Args[1][1:]
+			switch flag
+			case "png" :
 				drawGui = false
-			}
+			case "l1":
+				layoutFunc = forceDirectedStd
+				directed = false
+			case "l2":
+				layoutFunc = forceDirectedParallelStd
+				directed = false
 		} else {
 			if filenameSet {
 				errexit("Only one filename argument allowed.")
@@ -51,19 +72,13 @@ func main() {
 	}
 	endPhase("Parse command line", &phaseStart)
 
-	graph, err := buildGraphFromFile(filename)
+	graph, err := buildGraphFromFile(filename, directed)
 	if err != nil {
 		errexit(fmt.Sprintf("Error building graph: %v\n", err))
 	}
 	endPhase("Build graph", &phaseStart)
 
-	// positions := ForceDirectedLayout(graph, 10000, 800., 600.)
-	positions := ForceDirectedLayoutParallel(graph, 10000, 800., 600., 1000)
-	/*
-	for node, pos := range positions {
-		fmt.Printf("Node %d: (%.2f, %.2f)\n", node, pos.X, pos.Y)
-	}
-	*/
+	positions := layoutFunc(graph)
 	endPhase("Compute layout", &phaseStart)
 
 	outGraph := augmentGraph(graph, positions)
