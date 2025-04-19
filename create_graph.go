@@ -30,7 +30,7 @@ func convertGraph(graph map[int][]int) Graph {
 }
 
 // Builds graph from file input
-func buildGraphFromFile(filename string, directed) (Graph, error) {
+func buildGraphFromFile(filename string, directed bool) (Graph, error) {
     file, err := os.Open(filename)
     if err != nil {
         return nil, err

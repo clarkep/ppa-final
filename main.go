@@ -27,11 +27,11 @@ func endPhase(phaseName string, phaseStart *time.Time) {
 	*phaseStart = phaseEnd
 }
 
-func forceDirectedStd (graph Graph) {
+func forceDirectedStd (graph Graph) []Point {
 	return ForceDirectedLayout(graph, 10000, 800., 600.)
 }
 
-func forceDirectedParallelStd (graph Graph) {
+func forceDirectedParallelStd (graph Graph) []Point {
 	return ForceDirectedLayoutParallel(graph, 10000, 800., 600., 1000)
 }
 
@@ -48,8 +48,8 @@ func main() {
 	directed := false
 	for i := 1; i < len(os.Args); i++ {
 		if os.Args[i][0] == '-' {
-			flag = os.Args[1][1:]
-			switch flag
+			flag := os.Args[1][1:]
+			switch flag {
 			case "png" :
 				drawGui = false
 			case "l1":
@@ -58,6 +58,7 @@ func main() {
 			case "l2":
 				layoutFunc = forceDirectedParallelStd
 				directed = false
+			}
 		} else {
 			if filenameSet {
 				errexit("Only one filename argument allowed.")
