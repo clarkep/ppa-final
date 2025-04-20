@@ -137,12 +137,12 @@ func drawDirectedLine(img *image.RGBA, x1, y1, x2, y2 int, color color.RGBA, arr
 	// Apply a rotation matrix to find the location of the "arrowhead" points...
 	// This won't draw the arrows quite right if they go off the screen: the proper thing
 	// todo would be to compute the intersection with the boundary lines. -Paul
-	arrowLeftX := roundAndClamp(tipX+arrowLeftRotMatrix.xx*R*rx+arrowLeftRotMatrix.xy*R*ry, 0, imgW)
-	arrowLeftY := roundAndClamp(tipY+arrowLeftRotMatrix.yx*R*rx+arrowLeftRotMatrix.yy*R*ry, 0, imgH)
+	arrowLeftX := roundAndClamp(tipX+arrowLeftRotMatrix.xx*R*rx+arrowLeftRotMatrix.xy*R*ry, 0, imgW-1)
+	arrowLeftY := roundAndClamp(tipY+arrowLeftRotMatrix.yx*R*rx+arrowLeftRotMatrix.yy*R*ry, 0, imgH-1)
 	drawLine(img, round64(tipX), round64(tipY), arrowLeftX, arrowLeftY, arrowcolor)
 
-	arrowRightX := roundAndClamp(tipX+arrowRightRotMatrix.xx*R*rx+arrowRightRotMatrix.xy*R*ry, 0, imgW)
-	arrowRightY := roundAndClamp(tipY+arrowRightRotMatrix.yx*R*rx+arrowRightRotMatrix.yy*R*ry, 0, imgH)
+	arrowRightX := roundAndClamp(tipX+arrowRightRotMatrix.xx*R*rx+arrowRightRotMatrix.xy*R*ry, 0, imgW-1)
+	arrowRightY := roundAndClamp(tipY+arrowRightRotMatrix.yx*R*rx+arrowRightRotMatrix.yy*R*ry, 0, imgH-1)
 	drawLine(img, round64(tipX), round64(tipY), arrowRightX, arrowRightY, arrowcolor)
 }
 
