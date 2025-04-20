@@ -6,6 +6,7 @@ import (
 	"image/color"
 	"image/draw"
 	"image/png"
+	"math"
 	"os"
 
 	"log"
@@ -24,9 +25,9 @@ type PosNode struct {
 	Edges []int
 }
 
-type PosGraph []PosNode;
+type PosGraph []PosNode
 
-var testgraph = PosGraph {
+var testgraph = PosGraph{
 	{X: 0, Y: 0, Edges: []int{1, 2, 3}},
 	{X: 1, Y: 0, Edges: []int{0, 3}},
 	{X: 0, Y: 1, Edges: []int{0, 3}},
@@ -34,6 +35,7 @@ var testgraph = PosGraph {
 }
 
 var edgeColor = color.RGBA{0, 0, 0, 255}
+var arrowColor = color.RGBA{32, 32, 255, 255}
 var nodeColor = color.RGBA{0, 0, 255, 255}
 var nodeRadius = 12
 
@@ -101,6 +103,49 @@ func drawLine(img *image.RGBA, x1, y1, x2, y2 int, color color.RGBA) {
 	}
 }
 
+func round64(x float64) int {
+	return int(math.Round(x))
+}
+
+func roundAndClamp(x float64, min, max int) int {
+	xi := int(math.Round(x))
+	if xi < min {
+		return min
+	} else if xi > max {
+		return max
+	} else {
+		return xi
+	}
+}
+
+type Mat2d = struct{ xx, xy, yx, yy float64 }
+
+var arrowLeftRotMatrix = Mat2d{xx: -.866, xy: -.5, yx: .5, yy: -.866}
+var arrowRightRotMatrix = Mat2d{xx: -.866, xy: .5, yx: -.5, yy: -.866}
+
+func drawDirectedLine(img *image.RGBA, x1, y1, x2, y2 int, color color.RGBA, arrowcolor color.RGBA) {
+	imgW, imgH := img.Bounds().Max.X, img.Bounds().Max.Y
+	drawLine(img, x1, y1, x2, y2, color)
+	dx := float64(x2 - x1)
+	dy := float64(y2 - y1)
+	r := math.Sqrt(dx*dx + dy*dy)
+	R := float64(20.0)
+	rx := dx / r
+	ry := dy / r
+	tipX := float64(x2) - float64(nodeRadius)*rx
+	tipY := float64(y2) - float64(nodeRadius)*ry
+	// Apply a rotation matrix to find the location of the "arrowhead" points...
+	// This won't draw the arrows quite right if they go off the screen: the proper thing
+	// todo would be to compute the intersection with the boundary lines. -Paul
+	arrowLeftX := roundAndClamp(tipX+arrowLeftRotMatrix.xx*R*rx+arrowLeftRotMatrix.xy*R*ry, 0, imgW)
+	arrowLeftY := roundAndClamp(tipY+arrowLeftRotMatrix.yx*R*rx+arrowLeftRotMatrix.yy*R*ry, 0, imgH)
+	drawLine(img, round64(tipX), round64(tipY), arrowLeftX, arrowLeftY, arrowcolor)
+
+	arrowRightX := roundAndClamp(tipX+arrowRightRotMatrix.xx*R*rx+arrowRightRotMatrix.xy*R*ry, 0, imgW)
+	arrowRightY := roundAndClamp(tipY+arrowRightRotMatrix.yx*R*rx+arrowRightRotMatrix.yy*R*ry, 0, imgH)
+	drawLine(img, round64(tipX), round64(tipY), arrowRightX, arrowRightY, arrowcolor)
+}
+
 // filled in circle at (x, y) with radius r
 func drawCircle(img *image.RGBA, x, y, r int, color color.RGBA) {
 	// not quite Bresenham quality, Todo: improve or antialias
@@ -112,7 +157,7 @@ func drawCircle(img *image.RGBA, x, y, r int, color color.RGBA) {
 				img.Set(x+i, y-j, color)
 				img.Set(x+i, y+j, color)
 			} else {
-				break;
+				break
 			}
 		}
 	}
@@ -121,7 +166,7 @@ func drawCircle(img *image.RGBA, x, y, r int, color color.RGBA) {
 /***********/
 
 func getBoundary(graph []PosNode) Boundary {
-	boundary := Boundary{}
+	boundary := Boundary{Left: 1000000, Right: -10000000, Bottom: 1000000000, Top: -100000000000}
 	for _, node := range graph {
 		if node.X < boundary.Left {
 			boundary.Left = node.X
@@ -151,13 +196,17 @@ func translateCoords(x, y float32, boundary Boundary, imgW, imgH int) (int, int)
 	return xOffset, yOffset
 }
 
-func drawEdges(img *image.RGBA, graph []PosNode, boundary Boundary) {
+func drawEdges(img *image.RGBA, graph []PosNode, boundary Boundary, directed bool) {
 	imgW, imgH := img.Bounds().Max.X, img.Bounds().Max.Y
 	for _, node := range graph {
 		for _, edge := range node.Edges {
 			x1p, y1p := translateCoords(node.X, node.Y, boundary, imgW, imgH)
 			x2p, y2p := translateCoords(graph[edge].X, graph[edge].Y, boundary, imgW, imgH)
-			drawLine(img, x1p, y1p, x2p, y2p, edgeColor)
+			if directed {
+				drawDirectedLine(img, x1p, y1p, x2p, y2p, edgeColor, arrowColor)
+			} else {
+				drawLine(img, x1p, y1p, x2p, y2p, edgeColor)
+			}
 		}
 	}
 }
@@ -170,16 +219,19 @@ func drawNodes(img *image.RGBA, graph PosGraph, boundary Boundary) {
 	}
 }
 
-/* Todo: Rendering the graph can actually be done in parallel because we don't mind
-   drawing things on top of each other as long as the edge phase and the node phase are
-   separate. */
-func drawGraph(img *image.RGBA, graph PosGraph) {
+/*
+Todo: Rendering the graph can actually be done in parallel because we don't mind
+
+	drawing things on top of each other as long as the edge phase and the node phase are
+	separate.
+*/
+func drawGraph(img *image.RGBA, graph PosGraph, directed bool) {
 	boundary := getBoundary(graph)
-	drawEdges(img, graph, boundary)
+	drawEdges(img, graph, boundary, directed)
 	drawNodes(img, graph, boundary)
 }
 
-func run(window *app.Window, graph PosGraph) error {
+func run(window *app.Window, graph PosGraph, directed bool) error {
 	var ops op.Ops
 	for {
 		switch e := window.Event().(type) {
@@ -188,7 +240,7 @@ func run(window *app.Window, graph PosGraph) error {
 		case app.FrameEvent:
 			img := image.NewRGBA(image.Rect(0, 0, e.Size.X, e.Size.Y))
 			draw.Draw(img, img.Bounds(), &image.Uniform{color.White}, image.Point{}, draw.Src)
-			drawGraph(img, graph)
+			drawGraph(img, graph, directed)
 
 			// see https://gioui.org/doc/architecture/drawing
 			paint.NewImageOp(img).Add(&ops)
@@ -198,12 +250,12 @@ func run(window *app.Window, graph PosGraph) error {
 	}
 }
 
-func RenderGUI (graph PosGraph) {
+func RenderGUI(graph PosGraph, directed bool) {
 	fmt.Println("Starting ui...")
 	go func() {
 		window := new(app.Window)
 		window.Option(app.Title("Graphs"))
-		err := run(window, graph)
+		err := run(window, graph, directed)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -212,10 +264,10 @@ func RenderGUI (graph PosGraph) {
 	app.Main()
 }
 
-func RenderPNG (graph PosGraph) {
+func RenderPNG(graph PosGraph, directed bool) {
 	img := image.NewRGBA(image.Rect(0, 0, 800, 800))
 	draw.Draw(img, img.Bounds(), &image.Uniform{color.White}, image.Point{}, draw.Src)
-	drawGraph(img, graph)
+	drawGraph(img, graph, directed)
 	out, _ := os.Create("output.png")
 	png.Encode(out, img)
 	out.Close()

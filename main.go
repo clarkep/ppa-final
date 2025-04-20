@@ -48,8 +48,7 @@ func main() {
 	directed := false
 	for i := 1; i < len(os.Args); i++ {
 		if os.Args[i][0] == '-' {
-			flag := os.Args[1][1:]
-			switch flag {
+			switch os.Args[i][1:] {
 			case "png" :
 				drawGui = false
 			case "l1":
@@ -58,6 +57,9 @@ func main() {
 			case "l2":
 				layoutFunc = forceDirectedParallelStd
 				directed = false
+			case "l3":
+				layoutFunc = SugiyamaLayout
+				directed = true
 			}
 		} else {
 			if filenameSet {
@@ -85,9 +87,9 @@ func main() {
 	outGraph := augmentGraph(graph, positions)
 
 	if drawGui {
-		RenderGUI(outGraph)
+		RenderGUI(outGraph, directed)
 	} else {
-		RenderPNG(outGraph)
+		RenderPNG(outGraph, directed)
 		endPhase("Create PNG", &phaseStart)
 	}
 }

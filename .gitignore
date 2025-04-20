@@ -1,3 +1,9 @@
+# Project files
+input.txt
+go.sum
+ppa-final
+output.png
+
 # Binaries for programs and plugins
 *.exe
 *.dll
@@ -30,7 +36,3 @@ go.work
 .DS_Store
 Thumbs.db
 
-# Project files
-input.txt
-go.sum
-ppa-final

@@ -61,6 +61,12 @@ func buildGraphFromFile(filename string, directed bool) (Graph, error) {
         graph[u] = append(graph[u], v)
         if (!directed) {
             graph[v] = append(graph[v], u)
+        } else {
+            // Need to initialize nodes even if they have no outgoing edges
+            _, ok := graph[v]
+            if !ok {
+                graph[v] = make([]int, 0)
+            }
         }
     }
 
