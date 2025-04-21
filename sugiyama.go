@@ -26,6 +26,7 @@ func assignLevels(graph Graph) [][]int {
 	Z := make([]bool, n)
 	currentLayer := 0
 	for !allTrue(U) {
+		outerLoop:
 		for i := range n {
 			// select a vertex from V \ U with all outgoing edges in Z
 			if !U[i] {
@@ -39,11 +40,12 @@ func assignLevels(graph Graph) [][]int {
 				if selected {
 					out[currentLayer] = append(out[currentLayer], i)
 					U[i] = true
-					break
+					// goto used as a "continue", but for the outer loop
+					goto outerLoop
 				}
 			}
 		}
-		// here, none have been selected
+		// none have been selected, so go up a layer
 		currentLayer++
 		out = append(out, make([]int, 0))
 		// Z = Z union U
