@@ -6,6 +6,7 @@ import (
     "os"
     "strconv"
     "strings"
+    "sort"
 )
 
 // Graph type using adjacency list
@@ -13,17 +14,24 @@ type Graph [][]int
 
 // Converts graph from map to slice
 func convertGraph(graph map[int][]int) Graph {
-	keysToIndices := make(map[int]int, len(graph))
+	keys := make([]int, len(graph))
 	i := 0
 	for k, _ := range graph {
-		keysToIndices[k] = i
+		keys[i] = k
 		i += 1
 	}
+    // Put the keys in sorted order to make debugging easier: if the node names in the file
+    // start with 0 and don't have gaps, they will be the same as the node indices in the graph.
+    // Can put this behind a debug mode flag if we want.
+    sort.Ints(keys)
+    keysToIndices := make(map[int]int)
+    for i, k := range keys {
+        keysToIndices[k] = i
+    }
 	out := make([][]int, len(graph))
-	for k, v := range graph {
-		ki := keysToIndices[k]
-		for _, neighbor_key := range v {
-			out[ki] = append(out[ki], keysToIndices[neighbor_key])
+	for i, k := range keys {
+		for _, neighbor_key := range graph[k] {
+			out[i] = append(out[i], keysToIndices[neighbor_key])
 		}
 	}
 	return out
