@@ -75,7 +75,7 @@ func assignCoordinates(graph Graph, orders [][]int) []Point {
 	return out
 }
 
-func SugiyamaLayout(graph Graph) []Point {
+func SugiyamaLayout(graph Graph, iterations int) []Point {
 	graph2 := removeCycles(graph)
 
 	levels := assignLevels(graph2)

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/spf13/cobra"
 	"os"
 	"time"
 )
@@ -27,53 +28,73 @@ func endPhase(phaseName string, phaseStart *time.Time) {
 	*phaseStart = phaseEnd
 }
 
-func forceDirectedStd (graph Graph) []Point {
-	return ForceDirectedLayout(graph, 10000, 800., 600.)
+func forceDirectedStd(graph Graph, iterations int) []Point {
+	return ForceDirectedLayout(graph, iterations, 800., 600.)
 }
 
-func forceDirectedParallelStd (graph Graph) []Point {
-	return ForceDirectedLayoutParallel(graph, 10000, 800., 600., 1000)
+func forceDirectedParallelStd(graph Graph, iterations int) []Point {
+	return ForceDirectedLayoutParallel(graph, iterations, 800., 600., 1000)
 }
 
-func SugiyamaMain () {
+func SugiyamaMain() {
 	fmt.Printf("Not implemented yet.\n")
 }
 
 func main() {
 	phaseStart := time.Now()
-	drawGui := true
-	var filename string
-	filenameSet := false
 	layoutFunc := forceDirectedStd
 	directed := false
-	for i := 1; i < len(os.Args); i++ {
-		if os.Args[i][0] == '-' {
-			switch os.Args[i][1:] {
-			case "png" :
-				drawGui = false
-			case "l1":
+
+	var (
+		png        bool
+		iterations int
+		algoType   string
+		filename   string
+	)
+
+	rootCmd := &cobra.Command{
+		Use:   "ppa-final",
+		Short: "Graph layout visualization tool",
+		Run: func(cmd *cobra.Command, args []string) {
+			// Validate algorithm type
+			validAlgos := map[string]bool{"seq": true, "parallel": true, "sugiyama": true}
+			if !validAlgos[algoType] {
+				cobra.CheckErr(fmt.Errorf("invalid algorithm type '%s'. Valid options: seq, parallel, sugiyama", algoType))
+			}
+
+			// Map algorithm type to layout function
+			switch algoType {
+			case "seq":
 				layoutFunc = forceDirectedStd
 				directed = false
-			case "l2":
+			case "parallel":
 				layoutFunc = forceDirectedParallelStd
 				directed = false
-			case "l3":
+			case "sugiyama":
 				layoutFunc = SugiyamaLayout
 				directed = true
 			}
-		} else {
-			if filenameSet {
-				errexit("Only one filename argument allowed.")
-			} else {
-				filename = os.Args[i]
-				filenameSet = true
-			}
-		}
+		},
 	}
-	if !filenameSet {
-		errexit("Usage: ppa-final [-png] <input-file>")
-	}
-	endPhase("Parse command line", &phaseStart)
+
+	// Boolean flag (default: false)
+	rootCmd.Flags().BoolVarP(&png, "png", "p", false, "Enable PNG output")
+
+	// Required integer flag
+	rootCmd.Flags().IntVarP(&iterations, "iter", "i", 100, "Number of iterations (required)")
+	rootCmd.MarkFlagRequired("iterations")
+
+	// Enumerated string flag
+	rootCmd.Flags().StringVarP(&algoType, "algo", "a", "",
+		"Algorithm type (seq|parallel|sugiyama) (required)")
+	rootCmd.MarkFlagRequired("algo")
+
+	// Enumerated string flag
+	rootCmd.Flags().StringVarP(&filename, "file", "f", "",
+		"Filename (required)")
+	rootCmd.MarkFlagRequired("file")
+
+	cobra.CheckErr(rootCmd.Execute())
 
 	graph, err := buildGraphFromFile(filename, directed)
 	if err != nil {
@@ -81,12 +102,12 @@ func main() {
 	}
 	endPhase("Build graph", &phaseStart)
 
-	positions := layoutFunc(graph)
+	positions := layoutFunc(graph, iterations)
 	endPhase("Compute layout", &phaseStart)
 
 	outGraph := augmentGraph(graph, positions)
 
-	if drawGui {
+	if !png {
 		RenderGUI(outGraph, directed)
 	} else {
 		RenderPNG(outGraph, directed)

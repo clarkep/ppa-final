@@ -1,9 +1,10 @@
 import random
 import sys
+from tqdm import tqdm
 
 def generate_edges(N, num_edges):
     edges = []
-    for _ in range(num_edges):
+    for _ in tqdm(range(num_edges), desc="Generating edges"):
         u = random.randint(1, N)
         v = random.randint(1, N)
         while u == v:  # Avoid self-loops

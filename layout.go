@@ -4,6 +4,8 @@ import (
 	"math"
 	"math/rand"
 	"sync"
+
+	"github.com/schollz/progressbar/v3"
 )
 
 type Point struct {
@@ -57,12 +59,9 @@ func ForceDirectedLayout(nodes Graph, iterations int, width, height float64) []P
 	coolingRate := t / float64(iterations)
 	epsilon := 1e-6
 
+	bar := progressbar.Default(int64(iterations))
 	for iter := 0; iter < iterations; iter++ {
-		// print iteration count after every 1000 iterations
-		if iter%1000 == 0 {
-			println("Iteration: ", iter)
-		}
-
+		bar.Add(1)
 		displacements := make([]Point, n)
 
 		// Calculate repulsive forces
@@ -135,11 +134,9 @@ func ForceDirectedLayoutParallel(nodes Graph, iterations int, width, height floa
 	coolingRate := t / float64(iterations)
 	epsilon := 1e-6
 
+	bar := progressbar.Default(int64(iterations))
 	for iter := 0; iter < iterations; iter++ {
-		// print iteration count after every 1000 iterations
-		if iter%1000 == 0 {
-			println("Iteration: ", iter)
-		}
+		bar.Add(1)
 
 		displacements := make([]Point, n)
 
