@@ -6,7 +6,7 @@ import (
 
 func removeCycles(graph Graph) Graph {
 	// Todo
-	return graph	
+	return graph
 }
 
 func allTrue(vertexSet []bool) bool {
@@ -20,13 +20,13 @@ func allTrue(vertexSet []bool) bool {
 
 func assignLevels(graph Graph) [][]int {
 	// the "longest path algorithm"
-	out := make([][]int, 1) 
+	out := make([][]int, 1)
 	n := len(graph)
 	U := make([]bool, n)
 	Z := make([]bool, n)
 	currentLayer := 0
 	for !allTrue(U) {
-		outerLoop:
+	outerLoop:
 		for i := range n {
 			// select a vertex from V \ U with all outgoing edges in Z
 			if !U[i] {
@@ -69,7 +69,7 @@ func assignCoordinates(graph Graph, orders [][]int) []Point {
 	for x, lvl := range orders {
 		for _, u := range lvl {
 			// just assign coordinates based on (level, order in level)
-			out[u] = Point { X: float64(len(orders) - x), Y: rand.Float64() }
+			out[u] = Point{X: float64(len(orders) - x), Y: rand.Float64()}
 		}
 	}
 	return out

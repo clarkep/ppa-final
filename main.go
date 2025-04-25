@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
-	"github.com/spf13/cobra"
 	"os"
 	"time"
+
+	"github.com/spf13/cobra"
 )
 
 func augmentGraph(graph Graph, positions []Point) PosGraph {
@@ -29,11 +30,15 @@ func endPhase(phaseName string, phaseStart *time.Time) {
 }
 
 func forceDirectedStd(graph Graph, iterations int) []Point {
-	return ForceDirectedLayout(graph, iterations, 800., 600.)
+	return forceDirectedLayout(graph, iterations, 800., 600.)
 }
 
 func forceDirectedParallelStd(graph Graph, iterations int) []Point {
-	return ForceDirectedLayoutParallel(graph, iterations, 800., 600., 1000)
+	return forceDirectedLayoutParallel(graph, iterations, 800., 600., 1000)
+}
+
+func forceDirectedQuadtreeStd(graph Graph, iterations int) []Point {
+	return forceDirectedQuadtree(graph, iterations, 800., 600., 1000)
 }
 
 func SugiyamaMain() {
@@ -57,7 +62,7 @@ func main() {
 		Short: "Graph layout visualization tool",
 		Run: func(cmd *cobra.Command, args []string) {
 			// Validate algorithm type
-			validAlgos := map[string]bool{"seq": true, "parallel": true, "sugiyama": true}
+			validAlgos := map[string]bool{"seq": true, "parallel": true, "sugiyama": true, "quadtree": true}
 			if !validAlgos[algoType] {
 				cobra.CheckErr(fmt.Errorf("invalid algorithm type '%s'. Valid options: seq, parallel, sugiyama", algoType))
 			}
@@ -73,6 +78,9 @@ func main() {
 			case "sugiyama":
 				layoutFunc = SugiyamaLayout
 				directed = true
+			case "quadtree":
+				layoutFunc = forceDirectedQuadtreeStd
+				directed = false
 			}
 		},
 	}
@@ -86,7 +94,7 @@ func main() {
 
 	// Enumerated string flag
 	rootCmd.Flags().StringVarP(&algoType, "algo", "a", "",
-		"Algorithm type (seq|parallel|sugiyama) (required)")
+		"Algorithm type (seq|parallel|sugiyama|quadtree) (required)")
 	rootCmd.MarkFlagRequired("algo")
 
 	// Enumerated string flag
