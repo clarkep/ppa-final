@@ -1,7 +1,9 @@
 package main
 
 import (
-	"math/rand"
+	"slices"
+	"sort"
+//	"math/rand"
 )
 
 func removeCycles(graph Graph) Graph {
@@ -59,17 +61,36 @@ func assignLevels(graph Graph) [][]int {
 }
 
 func orderLevels(graph Graph, levels [][]int) [][]int {
-	// Todo
+	for i := 1; i < len(levels); i++ {
+		lvl := levels[i]
+		order := make([][2]int, len(levels[i]))
+		for j, v := range lvl {
+			pos := 0
+			for k, u := range levels[i - 1] {
+				if slices.Contains(graph[u], v) {
+					pos += k
+				}
+			}
+			order[j][0] = pos
+			order[j][1] = lvl[j]
+		}
+		sort.Slice(order, func (i, j int) bool {
+			return order[i][0] < order[j][0]
+		})
+		for j := range order {
+			levels[i][j] = order[j][1]
+		}
+	}
 	return levels
 }
 
 func assignCoordinates(graph Graph, orders [][]int) []Point {
-	// Todo: this is a dummy algorithm
 	out := make([]Point, len(graph))
 	for x, lvl := range orders {
-		for _, u := range lvl {
+		n := len(lvl)
+		for i, u := range lvl {
 			// just assign coordinates based on (level, order in level)
-			out[u] = Point{X: float64(len(orders) - x), Y: rand.Float64()}
+			out[u] = Point{X: float64(len(orders) - x), Y: (100*float64(i+1))/float64(n+1)}
 		}
 	}
 	return out
