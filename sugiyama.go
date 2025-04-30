@@ -33,7 +33,7 @@ func removeCycles(outgoing Graph) (Graph, [][2]int) {
 
     Nbuckets := 2*(n-1) + 1       // [-(n-1), (n-1)]
     off := n - 1                  
-    head := make([]int, Nbuckets) // head[delta + off] = first node in bucket Δ
+    head := make([]int, Nbuckets) // head[delta + off] = first node in bucket delta
     next := make([]int, n)        // forward links inside buckets
     prev := make([]int, n)        // backward links
     for i := range head { head[i] = -1 }
@@ -58,7 +58,7 @@ func removeCycles(outgoing Graph) (Graph, [][2]int) {
     }
 
     sinks, sources := []int{}, []int{}
-	for v := 0; v < n; v++ { 
+	for v := range n { 
         alive[v] = true
         indeg[v] = len(incoming[v])
         outdeg[v] = len(outgoing[v])
@@ -80,41 +80,38 @@ func removeCycles(outgoing Graph) (Graph, [][2]int) {
 
     // Update a node with a new delta
     update := func(u, deltaIncr int) {
-        if !alive[u] { return }
         old := delta[u]
         delta[u] += deltaIncr
-	    if delta[u] != old { popFromBucket(u); pushBucket(u); advanceMax() }
+	    if delta[u] != old { 
+            popFromBucket(u); 
+            pushBucket(u);
+        }
     }
 
     // Remove a node from the graph and update buckets, O(1+deg[v]).
-    remove := func(v int, toS2 bool) {
+    remove := func(v int) {
         alive[v] = false
         remaining--
         popFromBucket(v)
-        advanceMax()
-        if toS2 {
-        	s2 = append(s2, v)
-        } else {
-        	s1 = append(s1, v)
-        }
-
         for _, u := range incoming[v] {
-            if !alive[u] { continue }
-            outdeg[u]--
-            if outdeg[u] == 0 {
-                popFromBucket(u)
-                sinks = append(sinks, u)
+            if alive[u] { 
+                outdeg[u]--
+                if outdeg[u] == 0 {
+                    popFromBucket(u)
+                    sinks = append(sinks, u)
+                }
+                update(u, -1)
             }
-            update(u, -1)
         }
         for _, u := range outgoing[v] {
-            if !alive[u] { continue }
-            indeg[u]--
-            if indeg[u] == 0 {
-                popFromBucket(delta[u])
-                sources = append(sources, u)
+            if alive[u] { 
+                indeg[u]--
+                if indeg[u] == 0 {
+                    popFromBucket(u)
+                    sources = append(sources, u)
+                }
+                update(u, +1)
             }
-            update(u, +1)
         }
     }
 
@@ -125,24 +122,26 @@ func removeCycles(outgoing Graph) (Graph, [][2]int) {
             v := sinks[len(sinks)-1]
             sinks = sinks[:len(sinks)-1]
             if alive[v] { 
-            	remove(v, true)
+            	remove(v)
+                s2 = append(s2, v)
             }
         case len(sources) > 0:
             v := sources[len(sources)-1]
             sources = sources[:len(sources)-1]
             if alive[v] {
-            	remove(v, false)
+            	remove(v)
+                s1 = append(s1, v)
             }
         default:
             // choose vertex with current maximum Δ
             advanceMax()
             v := head[curMax]
-            remove(v, false)
+            s1 = append(s1, v)
         }
     }
 
     // Create ordering
-    order := s1 // XXX syntax?
+    order := s1
     for i := len(s2) - 1; i >= 0; i-- { 
     	order = append(order, s2[i])
     }
