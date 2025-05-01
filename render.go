@@ -166,7 +166,7 @@ func drawCircle(img *image.RGBA, x, y, r int, color color.RGBA) {
 /***********/
 
 func getBoundary(graph []PosNode) Boundary {
-	boundary := Boundary{Left: 1000000, Right: -10000000, Bottom: 1000000000, Top: -100000000000}
+	boundary := Boundary{Left: -1, Right: 1, Bottom: -1, Top: 1}
 	for _, node := range graph {
 		if node.X < boundary.Left {
 			boundary.Left = node.X
