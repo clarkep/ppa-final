@@ -3,6 +3,9 @@ package main
 import (
 	"slices"
 	"sort"
+    "runtime/trace"
+    "os"
+//    "fmt"
 //	"math/rand"
 )
 
@@ -17,10 +20,65 @@ func get_incoming_edges(graph Graph) [][]int {
 	return res
 }
 
-// Push value v to bucket i
-// func (b: *BucketQueue) pushBucket (i, v int)
-// Remove value v from bucket i
-// func (b: *BucketQueue) popBucket (i, v int)
+type BucketQueue struct {
+    Nbuckets int
+    // convenience for indexing with a shifted index
+    off int
+    // bucket[node index] = bucket the node is in, or -1 for none
+    bucket []int
+    // head[bucket index] = node at the head of the bucket
+    head []int
+    // next[node index] = next node, or -1 for none
+    next []int
+    // prev[node index] = previous node, or -1 for none
+    prev []int
+}
+
+func newBucketQueue(n, m, off int) BucketQueue {
+    q := BucketQueue { 
+        m,
+        off,
+        make([]int, n),
+        make([]int, m),
+        make([]int, n),
+        make([]int, n),
+    }
+    for i := range n {
+        q.bucket[i] = -1
+        q.next[i] = -1
+        q.prev[i] = -1
+    }
+    for i := range m {
+        q.head[i] = -1
+    }
+    return q
+}
+
+// Push node n to bucket i
+func (q *BucketQueue) push(n, b int) {
+    i := b + q.off
+    q.bucket[n] = i
+    q.prev[n] = -1
+    q.next[n] = q.head[i]
+    if q.head[i] != -1 { q.prev[q.head[i]] = n }
+    q.head[i] = n
+}
+
+// Remove node n from bucket i
+func (q *BucketQueue) pop(n int) {
+    i := q.bucket[n]
+    if i >= 0 {
+        q.bucket[n] = -1
+        if q.prev[n] == -1 {
+            q.head[i] = q.next[n]
+        } else {
+            nextPrev := q.prev[n]
+            q.next[nextPrev] = q.next[n]
+        }
+        if q.next[n] != -1 { q.prev[q.next[n]] = q.prev[n] }
+        q.next[n], q.prev[n] = -1, -1
+    }
+}
 
 func removeCycles(outgoing Graph) (Graph, [][2]int) {
 	// Greedy Cycle Removal
@@ -32,30 +90,8 @@ func removeCycles(outgoing Graph) (Graph, [][2]int) {
     alive := make([]bool, n)
 
     Nbuckets := 2*(n-1) + 1       // [-(n-1), (n-1)]
-    off := n - 1                  
-    head := make([]int, Nbuckets) // head[delta + off] = first node in bucket delta
-    next := make([]int, n)        // forward links inside buckets
-    prev := make([]int, n)        // backward links
-    for i := range head { head[i] = -1 }
-
-    pushBucket := func(v int) {
-	    i := delta[v] + off
-        prev[v] = -1
-        next[v] = head[i]
-        if head[i] != -1 { prev[head[i]] = v }
-        head[i] = v
-    }
-    popFromBucket := func(v int) {
-        i := delta[v] + off
-        if prev[v] == -1 {
-            head[i] = next[v]
-        } else {
-            nextPrev := prev[v]
-            next[nextPrev] = next[v]
-        }
-        if next[v] != -1 { prev[next[v]] = prev[v] }
-        next[v], prev[v] = -1, -1
-    }
+    off := n - 1
+    q := newBucketQueue(n, Nbuckets, off)
 
     sinks, sources := []int{}, []int{}
 	for v := range n { 
@@ -63,18 +99,13 @@ func removeCycles(outgoing Graph) (Graph, [][2]int) {
         indeg[v] = len(incoming[v])
         outdeg[v] = len(outgoing[v])
         delta[v] = outdeg[v] - indeg[v]
-		pushBucket(v) 
+		q.push(v, delta[v]) 
         if outdeg[v] == 0 { sinks = append(sinks, v) }
         if indeg[v] == 0 { sources = append(sources, v) }
 	}
 
     // Track current maximum delta bucket
     curMax := Nbuckets - 1
-    advanceMax := func() {
-        for curMax >= 0 && head[curMax] == -1 { curMax-- }
-    }
-    advanceMax()
-
     s1, s2 := []int{}, []int{} // final ordering pieces
     remaining := n
 
@@ -83,8 +114,8 @@ func removeCycles(outgoing Graph) (Graph, [][2]int) {
         old := delta[u]
         delta[u] += deltaIncr
 	    if delta[u] != old { 
-            popFromBucket(u); 
-            pushBucket(u);
+            q.pop(u); 
+            q.push(u, delta[u]);
         }
     }
 
@@ -92,12 +123,12 @@ func removeCycles(outgoing Graph) (Graph, [][2]int) {
     remove := func(v int) {
         alive[v] = false
         remaining--
-        popFromBucket(v)
+        q.pop(v)
         for _, u := range incoming[v] {
             if alive[u] { 
                 outdeg[u]--
                 if outdeg[u] == 0 {
-                    popFromBucket(u)
+                    q.pop(u)
                     sinks = append(sinks, u)
                 }
                 update(u, -1)
@@ -107,7 +138,7 @@ func removeCycles(outgoing Graph) (Graph, [][2]int) {
             if alive[u] { 
                 indeg[u]--
                 if indeg[u] == 0 {
-                    popFromBucket(u)
+                    q.pop(u)
                     sources = append(sources, u)
                 }
                 update(u, +1)
@@ -133,9 +164,12 @@ func removeCycles(outgoing Graph) (Graph, [][2]int) {
                 s1 = append(s1, v)
             }
         default:
-            // choose vertex with current maximum Δ
-            advanceMax()
-            v := head[curMax]
+            // choose vertex with current maximum delta
+            for curMax >= 0 && q.head[curMax] == -1 { 
+                curMax-- 
+            }
+            v := q.head[curMax]
+            remove(v)
             s1 = append(s1, v)
         }
     }
@@ -148,10 +182,12 @@ func removeCycles(outgoing Graph) (Graph, [][2]int) {
 
     // Extract feedback‑arc set and modified graph
     pos := make([]int, n)
-    for i, v := range order { pos[v] = i }
+    for i, v := range order { 
+        pos[v] = i
+    }
     res := make([][]int, n)
     fas := make([][2]int, n)
-    for u := 0; u < n; u++ {
+    for u := range n {
         for _, v := range outgoing[u] {
             if pos[u] > pos[v] { 
             	res[v] = append(res[v], u)
@@ -251,6 +287,9 @@ func assignCoordinates(graph Graph, orders [][]int) []Point {
 }
 
 func SugiyamaLayout(graph Graph, iterations int) []Point {
+    f, _ := os.Create("trace.out")
+    trace.Start(f)
+
 	graph2, _ := removeCycles(graph)
 
 	levels := assignLevels(graph2)
@@ -258,6 +297,9 @@ func SugiyamaLayout(graph Graph, iterations int) []Point {
 	orders := orderLevels(graph2, levels)
 
 	positions := assignCoordinates(graph2, orders)
+
+    trace.Stop()
+    f.Close()
 
 	return positions
 }
