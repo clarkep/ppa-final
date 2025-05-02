@@ -5,6 +5,7 @@ import (
 	"sort"
     "runtime/trace"
     "os"
+    "sync"
 //    "fmt"
 //	"math/rand"
 )
@@ -26,7 +27,7 @@ type BucketQueue struct {
     off int
     // bucket[node index] = bucket the node is in, or -1 for none
     bucket []int
-    // head[bucket index] = node at the head of the bucket
+    // head[bucket index] = node at the head of the bucket, or -1 for none
     head []int
     // next[node index] = next node, or -1 for none
     next []int
@@ -217,7 +218,6 @@ func assignLevels(graph Graph) [][]int {
 	Z := make([]bool, n)
 	currentLayer := 0
 	for !allTrue(U) {
-	outerLoop:
 		for i := range n {
 			// select a vertex from V \ U with all outgoing edges in Z
 			if !U[i] {
@@ -232,7 +232,7 @@ func assignLevels(graph Graph) [][]int {
 					out[currentLayer] = append(out[currentLayer], i)
 					U[i] = true
 					// goto used as a "continue", but for the outer loop
-					goto outerLoop
+					continue
 				}
 			}
 		}
@@ -245,6 +245,60 @@ func assignLevels(graph Graph) [][]int {
 				Z[i] = true
 			}
 		}
+	}
+	return out
+}
+
+func assignLevelsPar(graph Graph, nWorkers int) [][]int {
+	// the "longest path algorithm", with parallelized search
+    // over nodes
+	out := make([][]int, 1)
+	n := len(graph)
+    chunkN := (n + nWorkers - 1) / nWorkers // xxx
+	U := make([]bool, n)
+	Z := make([]bool, n)
+	currentLayer := 0
+	for !allTrue(U) {
+	    var wg sync.WaitGroup
+        result := make(chan int, n)
+        for wi := range nWorkers {
+            start := wi * chunkN
+            end := min(start + chunkN, n)
+		    wg.Add(1)
+            go func(start, end int) {
+                defer wg.Done()
+                for i := start; i < end; i++ {
+                    // select all vertices from V \ U with all outgoing edges in Z
+                    if !U[i] {
+                        selected := true
+                        for _, v := range graph[i] {
+                            if !Z[v] {
+                                selected = false
+                                break
+                            }
+                        }
+                        if selected {
+                            result <- i
+                        }
+                    }
+                }
+            }(start, end)
+        }
+        wg.Wait()
+        close(result)
+
+        for i := range result {
+            out[currentLayer] = append(out[currentLayer], i)
+            U[i] = true
+        } 
+        currentLayer++
+        out = append(out, make([]int, 0))
+        // Z = Z union U
+        for i := range n {
+            if U[i] {
+                Z[i] = true
+            }
+        }
 	}
 	return out
 }
@@ -292,7 +346,7 @@ func SugiyamaLayout(graph Graph, iterations int) []Point {
 
 	graph2, _ := removeCycles(graph)
 
-	levels := assignLevels(graph2)
+	levels := assignLevelsPar(graph2, iterations)
 
 	orders := orderLevels(graph2, levels)
 
