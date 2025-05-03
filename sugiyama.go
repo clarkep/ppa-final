@@ -3,9 +3,8 @@ package main
 import (
 	"slices"
 	"sort"
-    "runtime/trace"
-    "os"
     "sync"
+    "time"
 //    "fmt"
 //	"math/rand"
 )
@@ -340,20 +339,26 @@ func assignCoordinates(graph Graph, orders [][]int) []Point {
 	return out
 }
 
+const subphases = false
+
 func SugiyamaLayout(graph Graph, iterations int) []Point {
-    f, _ := os.Create("trace.out")
-    trace.Start(f)
+    startTime := time.Now()
 
 	graph2, _ := removeCycles(graph)
 
+    if subphases { endPhase("\tRemove cycles", &startTime) }
+
 	levels := assignLevelsPar(graph2, iterations)
+
+    if subphases { endPhase("\tAssign levels", &startTime) }
 
 	orders := orderLevels(graph2, levels)
 
+    if subphases { endPhase("\tOrder levels", &startTime) }
+
 	positions := assignCoordinates(graph2, orders)
 
-    trace.Stop()
-    f.Close()
+    if subphases { endPhase("\tAssign coordinates", &startTime) }
 
 	return positions
 }

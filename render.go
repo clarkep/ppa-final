@@ -46,7 +46,7 @@ func lineOctant0or3(img *image.RGBA, x1, y1, absdx, dy, xDirection int, color co
 	deltaYx2 := 2 * dy
 	DeltaYx2MinusDeltaXx2 := deltaYx2 - 2*absdx
 	// Error actually represents how far off we are from the top of the current pixel, where -2*absdx is the bottom,
-	// and 0 is the top. So its misnamed, but the point is that algorithm only needs integer math. -Paul
+	// and 0 is the top. So its misnamed, but the point is that algorithm only needs integer math.
 	Error := -absdx + deltaYx2
 	img.Set(x1, y1, color)
 	x2 := x1 + xDirection*absdx
@@ -136,7 +136,7 @@ func drawDirectedLine(img *image.RGBA, x1, y1, x2, y2 int, color color.RGBA, arr
 	tipY := float64(y2) - float64(nodeRadius)*ry
 	// Apply a rotation matrix to find the location of the "arrowhead" points...
 	// This won't draw the arrows quite right if they go off the screen: the proper thing
-	// todo would be to compute the intersection with the boundary lines. -Paul
+	// todo would be to compute the intersection with the boundary lines.
 	arrowLeftX := roundAndClamp(tipX+arrowLeftRotMatrix.xx*R*rx+arrowLeftRotMatrix.xy*R*ry, 0, imgW-1)
 	arrowLeftY := roundAndClamp(tipY+arrowLeftRotMatrix.yx*R*rx+arrowLeftRotMatrix.yy*R*ry, 0, imgH-1)
 	drawLine(img, round64(tipX), round64(tipY), arrowLeftX, arrowLeftY, arrowcolor)
@@ -166,7 +166,7 @@ func drawCircle(img *image.RGBA, x, y, r int, color color.RGBA) {
 /***********/
 
 func getBoundary(graph []PosNode) Boundary {
-	boundary := Boundary{Left: -1, Right: 1, Bottom: -1, Top: 1}
+	boundary := Boundary{Left: 1000000, Right: -1000000, Bottom: 1000000, Top: -1000000}
 	for _, node := range graph {
 		if node.X < boundary.Left {
 			boundary.Left = node.X
@@ -180,6 +180,14 @@ func getBoundary(graph []PosNode) Boundary {
 		if node.Y > boundary.Top {
 			boundary.Top = node.Y
 		}
+	}
+	if (boundary.Top == boundary.Bottom) {
+		boundary.Top += 1
+		boundary.Bottom -= 1
+	}
+	if (boundary.Left == boundary.Right) {
+		boundary.Left -= 1
+		boundary.Right += 1
 	}
 	return boundary
 }

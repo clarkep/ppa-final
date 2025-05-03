@@ -23,9 +23,21 @@ func errexit(message string) {
 	os.Exit(1)
 }
 
+func scaledTime(ns int64) string {
+	if ns > 1000000000 {
+		return fmt.Sprintf("%.3g s", float64(ns) / 1000000000.0)
+	} else if ns > 1000000 {
+		return fmt.Sprintf("%.3g ms", float64(ns) / 1000000.0)
+	} else if ns > 1000 {
+		return fmt.Sprintf("%.3g us", float64(ns) / 1000.0)
+	} else {
+		return fmt.Sprintf("%.3g ns", float64(ns))
+	}
+}
+
 func endPhase(phaseName string, phaseStart *time.Time) {
 	phaseEnd := time.Now()
-	fmt.Printf("%s: %d ns\n", phaseName, phaseEnd.Sub(*phaseStart).Nanoseconds())
+	fmt.Printf("%s: %s\n", phaseName, scaledTime(phaseEnd.Sub(*phaseStart).Nanoseconds()))
 	*phaseStart = phaseEnd
 }
 
