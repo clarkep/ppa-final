@@ -349,10 +349,26 @@ func forceDirectedQuadtree(nodes Graph, iterations int, width, height float64, C
 
 		displacements := make([]Point, n)
 
+		// Wait group for goroutines
+		var wg sync.WaitGroup
+
+		// Calculate the number of goroutines needed - break into chunks of CHUNK_SIZE
+		goRoutineCount := (n + CHUNK_SIZE - 1) / CHUNK_SIZE
+
 		// Repulsive forces (Barnes-Hut)
-		for i, pi := range points {
-			displacements[i] = computeRepulsiveForceBarnesHut(pi, root, k, theta, epsilon)
+		for i := 0; i < goRoutineCount; i++ {
+			wg.Add(1)
+			startIndex := i * CHUNK_SIZE
+			endIndex := min(startIndex+CHUNK_SIZE, n)
+			go func() {
+				defer wg.Done()
+				for j := startIndex; j < endIndex; j++ {
+					displacements[j] = computeRepulsiveForceBarnesHut(points[j], root, k, theta, epsilon)
+				}
+			}()
 		}
+
+		wg.Wait()
 
 		// Calculate attractive forces using adjacency list with goroutines
 		for i, u := range nodes {
@@ -418,11 +434,6 @@ func forceDirectedQuadtree(nodes Graph, iterations int, width, height float64, C
 		}
 
 		// Update positions with temperature cooling
-		var wg sync.WaitGroup
-
-		// Calculate the number of goroutines needed - break into chunks of CHUNK_SIZE
-		goRoutineCount := (n + CHUNK_SIZE - 1) / CHUNK_SIZE
-
 		for j := 0; j < goRoutineCount; j++ {
 			wg.Add(1)
 			jCopy := j

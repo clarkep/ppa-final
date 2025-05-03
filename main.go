@@ -83,16 +83,13 @@ func main() {
 			switch algoType {
 			case "seq":
 				layoutFunc = forceDirectedStd
-				directed = false
 			case "parallel":
 				layoutFunc = forceDirectedParallelStd
-				directed = false
 			case "sugiyama":
 				layoutFunc = SugiyamaLayout
 				directed = true
 			case "quadtree":
 				layoutFunc = forceDirectedQuadtreeStd
-				directed = false
 			}
 		},
 	}

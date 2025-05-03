@@ -2,7 +2,7 @@
 input.txt
 go.sum
 ppa-final
-output.png
+*.png
 
 # Binaries for programs and plugins
 *.exe

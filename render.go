@@ -273,7 +273,7 @@ func RenderGUI(graph PosGraph, directed bool) {
 }
 
 func RenderPNG(graph PosGraph, directed bool) {
-	img := image.NewRGBA(image.Rect(0, 0, 800, 800))
+	img := image.NewRGBA(image.Rect(0, 0, 2000, 2000))
 	draw.Draw(img, img.Bounds(), &image.Uniform{color.White}, image.Point{}, draw.Src)
 	drawGraph(img, graph, directed)
 	out, _ := os.Create("output.png")
