@@ -318,93 +318,17 @@ type sortPair struct {
 	U int
 }
 
-func orderLevels(graph Graph, levels [][]int, levelmap [][2]int) [][]int {
-	incoming := get_incoming_edges(graph)
-	nLevels := len(levels)
-	nSources := make([]int, nLevels)
-	nSources[nLevels-1] = len(levels[nLevels-1])
-	// Barycentric averaging
-	for i := nLevels - 2; i >= 0; i-- {
-		lvl := levels[i]
-		order := make([]sortPair, len(levels[i]))
-		for j, v := range lvl {
-			pos := 0.0
-			if len(incoming[v]) == 0 {
-				nSources[i] += 1
-				pos = -1
-			} else {
-				for _, u := range incoming[v] {
-					lvl, lvl_i := levelmap[u][0], levelmap[u][1]
-					n := len(levels[lvl])
-					pos += float64(n-lvl_i) / float64(n+1)
-				}
-			}
-			order[j] = sortPair{pos, lvl[j]}
-		}
-		sort.Slice(order, func(i, j int) bool {
-			return order[i].P < order[j].P
-		})
-		for j, o := range order {
-			levels[i][j] = o.U
-			levelmap[o.U][1] = j
-		}
+func resetSlice (s *[]int) {
+	for j := range *s {
+		(*s)[j] = 0
 	}
-	// re-insert sources at their ideal locations. Slow, O(|nodes in level||edges in level|^2),
-    // because it explicitly counts the number of crossings that will result
-	for i := nLevels - 1; i >= 1; i-- {
-		if len(levels[i]) == 1 {
-			continue
-		}
-		levelSources := make([]int, nSources[i])
-		copy(levelSources, levels[i][:nSources[i]])
-		startN := nSources[i]
-		if startN == len(levels[i]) {
-			startN--
-		}
-		// spot -> number of crossings if the current source is placed there
-		crossings := make([]int, len(levels[i]))
-		for _, src := range levelSources {
-			for k, other := range levels[i][startN:] {
-				k = k + startN
-				for _, otherEdge := range graph[other] {
-					if levelmap[otherEdge][0] != i-1 {
-						continue
-					}
-					otherEdgeI := levelmap[otherEdge][1]
-					for _, srcEdge := range graph[src] {
-						if levelmap[srcEdge][0] != i-1 {
-							continue
-						}
-						srcEdgeI := levelmap[srcEdge][1]
-						if srcEdgeI > otherEdgeI {
-							for h := startN; h <= k; h++ {
-								crossings[h] += 1
-							}
-						} else if srcEdgeI < otherEdgeI {
-							for h := k + 1; h < len(levels[i]); h++ {
-								crossings[h] += 1
-							}
-						}
-					}
-				}
-			}
-			minCrossings := 100000000
-			bestSpot := -1
-			for k := startN; k < len(crossings); k++ {
-				if crossings[k] < minCrossings {
-					minCrossings = crossings[k]
-					bestSpot = k
-				}
-			}
-			copy(levels[i], levels[i][1:bestSpot+1])
-			levels[i][bestSpot] = src
-			startN--
-		}
-	}
-	return levels
 }
 
-func orderLevelsPar(graph Graph, levels [][]int, levelmap [][2]int) [][]int {
+// Ordering routine for non-source nodes. Uses an O(n) heuristic because non-source ordering
+// does not allow for parallelism. Modifies each level to contain first the source nodes,
+// then the ordered non-source nodes, and returns an array from levels -> number of sources 
+// we have skipped. levelmap is also modified.
+func barycentricOrder(graph, levels [][]int, levelmap [][2] int) []int {
     incoming := get_incoming_edges(graph)
     nLevels := len(levels)
     nSources := make([]int, nLevels)
@@ -421,83 +345,114 @@ func orderLevelsPar(graph Graph, levels [][]int, levelmap [][2]int) [][]int {
             } else {
                 for _, u := range incoming[v] {
                     lvl, lvl_i := levelmap[u][0], levelmap[u][1]
-                    n := len(levels[lvl])
-                    pos += float64(n-lvl_i) / float64(n+1)
+                    lvl_ns := nSources[lvl]
+                    var val float64
+                    if lvl_i < lvl_ns {
+                        val = 0
+                    } else {
+                        n := len(levels[lvl]) - lvl_ns
+                        val = float64((lvl_i - lvl_ns) + 1) / float64(n+1)
+                    }
+                    pos += val
                 }
+                pos /= float64(len(incoming[v]))
             }
             order[j] = sortPair{pos, lvl[j]}
         }
         sort.Slice(order, func(i, j int) bool {
-            return order[i].P < order[j].P
+            if order[i].P != order[j].P {
+                return order[i].P < order[j].P
+            } else {
+                // fall back to index to ensure determinism
+                return order[i].U < order[j].U
+            }
         })
         for j, o := range order {
             levels[i][j] = o.U
             levelmap[o.U][1] = j
         }
     }
+    return nSources
+}
+
+// Insert source nodes at their ideal locations. Slow, 
+// O(|nodes in level||edges from sources||edges from non-sources|), because it explicitly counts 
+// the number of crossings that will result. However, it can be parallelized between levels. Also,
+// the presence of many sources may suggest a sparse graph.
+func orderSources(graph [][]int, levelmap [][2] int, nSources, level []int, i int) {
+    if len(level) == 1 || nSources[i] == 0 {
+        return
+    }
+    levelSources := make([]int, nSources[i])
+    copy(levelSources, level[:nSources[i]])
+    startN := nSources[i]
+
+    // spot -> number of crossings if the current source is placed there
+    crossings := make([]int, len(level))
+    for _, src := range levelSources {
+        resetSlice(&crossings)
+        for k, other := range level[startN:] {
+            k = k + startN
+            for _, otherEdge := range graph[other] {
+                if levelmap[otherEdge][0] != i-1 {
+                    continue
+                }
+                otherEdgeI := levelmap[otherEdge][1]
+                for _, srcEdge := range graph[src] {
+                    if levelmap[srcEdge][0] != i-1 {
+                        continue
+                    }
+                    srcEdgeI := levelmap[srcEdge][1]
+                    if srcEdgeI > otherEdgeI {
+                        for h := startN-1; h < k; h++ {
+                            crossings[h] += 1
+                        }
+                    } else if srcEdgeI < otherEdgeI {
+                        for h := k; h < len(level); h++ {
+                            crossings[h] += 1
+                        }
+                    }
+                }
+            }
+        }
+        minCrossings := 100000000
+        bestSpot := -1
+        for k := startN-1; k < len(crossings); k++ {
+            if crossings[k] < minCrossings {
+                minCrossings = crossings[k]
+                bestSpot = k
+            }
+        }
+        // If bestSpot == 0, no copy is necessary
+        if (bestSpot > 0) { 
+            copy(level, level[1:bestSpot+1])
+            level[bestSpot] = src
+        }
+        startN--
+    }
+}
+
+func orderLevels(graph Graph, levels [][]int, levelmap [][2]int) [][]int {
+    nSources := barycentricOrder(graph, levels, levelmap)
+    for i := len(levels) - 1; i >= 1; i-- {
+        orderSources(graph, levelmap, nSources, levels[i], i)
+	}
+	return levels
+}
+
+func orderLevelsPar(graph Graph, levels [][]int, levelmap [][2]int) [][]int {
+    nSources := barycentricOrder(graph, levels, levelmap)
 
     levels2 := make([][]int, len(levels))
     var wg sync.WaitGroup
-    // In parallel, re-insert sources at their ideal locations. Slow, O(|nodes in level||edges in level|^2) work.
-    for i := nLevels - 1; i >= 0; i-- {
-		if (len(levels[i]) <= 1 || i == 0) {
-			levels2[i] = levels[i]
-			continue
-		}
-        level := make([]int, len(levels[i]))
-		copy(level, levels[i])
-        levelSources := make([]int, nSources[i])
-        copy(levelSources, levels[i][:nSources[i]])
-        startN := nSources[i]
-        if startN == len(levels[i]) {
-            startN--
-        }
+    // In parallel, re-insert sources at their ideal locations.
+    for i := len(levels) - 1; i >= 0; i-- {
         wg.Add(1)
         go func() {
             defer wg.Done()
-            // spot -> number of crossings if the current source is placed there
-            crossings := make([]int, len(level))
-			if len(levels[i]) == 1 {
-				goto done
-			}
-            for _, src := range levelSources {
-                for k, other := range level[startN:] {
-                    k = k + startN
-                    for _, otherEdge := range graph[other] {
-                        if levelmap[otherEdge][0] != i-1 {
-                            continue
-                        }
-                        otherEdgeI := levelmap[otherEdge][1]
-                        for _, srcEdge := range graph[src] {
-                            if levelmap[srcEdge][0] != i-1 {
-                                continue
-                            }
-                            srcEdgeI := levelmap[srcEdge][1]
-                            if srcEdgeI > otherEdgeI {
-                                for h := startN; h <= k; h++ {
-                                    crossings[h] += 1
-                                }
-                            } else if srcEdgeI < otherEdgeI {
-                                for h := k + 1; h < len(level); h++ {
-                                    crossings[h] += 1
-                                }
-                            }
-                        }
-                    }
-                }
-                minCrossings := 100000000
-                bestSpot := -1
-                for k := startN; k < len(crossings); k++ {
-                    if crossings[k] < minCrossings {
-                        minCrossings = crossings[k]
-                        bestSpot = k
-                    }
-                }
-                copy(level, level[1:bestSpot+1])
-                level[bestSpot] = src
-                startN--
-            }
-			done:
+            level := make([]int, len(levels[i]))
+            copy(level, levels[i])
+            orderSources(graph, levelmap, nSources, level, i)
             levels2[i] = level
         }()
     }
