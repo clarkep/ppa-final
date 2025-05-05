@@ -113,6 +113,8 @@ func main() {
 
 	cobra.CheckErr(rootCmd.Execute())
 
+	startTime := time.Now()
+
 	graph, err := buildGraphFromFile(filename, directed)
 	if err != nil {
 		errexit(fmt.Sprintf("Error building graph: %v\n", err))
@@ -130,4 +132,6 @@ func main() {
 		RenderPNG(outGraph, directed)
 		endPhase("Create PNG", &phaseStart)
 	}
+
+	fmt.Printf("Total time: %s\n", scaledTime(time.Since(startTime).Nanoseconds()))
 }
