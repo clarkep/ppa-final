@@ -1,5 +1,5 @@
-# Parallel Graph Drawing Algorithms
-This repository consists of code for exploring parallel graph drawing algorithms and their benchmarks.
+# Parallel Graph Drawing
+This project explores parallelizing graph drawing algorithms. In particular, it implements parallel force-directed and Sugiyama drawing algorithms.
 
 ## Generating Random Graphs
 Run `python graph_generator.py vertex_count edge_count`. This will output an `input.txt` where each line consists of an edge between two vertices.
